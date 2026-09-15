@@ -1,19 +1,19 @@
 
 -- Load the medals file
-medals = load 'medal_table.csv' 
+medals = load 'hdfs:///medal_table.csv' 
     using PigStorage(',') 
-    as (year:int, country_code:chararray, gold:chararray, silver:chararray, bronze:chararray);
+    as (year:int, country_code:chararray, gold:int, silver:int, bronze:int);
 
 -- Filter medeal by year (year,country_code,gold,silver,bronze)
 medals_filtered = Filter medals BY year >= 2010 AND year <= 2020;
 
 -- Load the countries file
-countries = load 'countries.csv'
+countries = load 'hdfs:///countries.csv'
     using PigStorage(',') 
     as (country_code:chararray, country_name:chararray, region:chararray);
 
 -- Load the games file
-games = load 'games.csv'
+games = load 'hdfs:///games.csv'
     using PigStorage(',') 
     as (year:int, host_city:chararray, host_country_code:chararray);
 
@@ -34,7 +34,9 @@ medals_type = FOREACH join_medals GENERATE
 -- (2018,South Korea,5,8,4,2018,PyeongChang,KOR)
 medals_with_host_city = JOIN medals_type BY year, games BY year;
 
+
 -- Aggregate
+-- (2018,South Korea,PyeongChang,5,17)
 total_medals_count = FOREACH medals_with_host_city GENERATE
     medals_type::year AS year,
     medals_type::country_name AS country_name,
@@ -42,4 +44,14 @@ total_medals_count = FOREACH medals_with_host_city GENERATE
     medals_type::gold AS gold,
     (medals_type::gold + medals_type::silver + medals_type::bronze) AS total_medals;
 
- grouped_by_year = GROUP total_medals_count BY year;
+-- Order
+total_medals_order = ORDER total_medals_count BY year asc;
+gold_counts = FOREACH total_medals_count GENERATE GROUP year;
+dump gold_counts;
+
+-- (2014,{(2014,United States,Sochi,9,28)})
+-- grouped_by_year = GROUP total_medals_count BY year;
+-- dump grouped_by_year;
+
+Register 'task2.py' using org.apache.pig.scripting.jython.JythonScriptEngine as udf;
+report = FOREACH  grouped_by_year GENERATE udf.format_Bag(grouped_by_year);
