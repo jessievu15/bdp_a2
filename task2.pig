@@ -19,11 +19,13 @@ gYear = GROUP medal_country_selected BY year;
 
 -- Get the top 3 countries and order in descending
 top3_gold = FOREACH gYear {
-    top3 = TOP(3, 3, medal_country_selected);
+    sorted = ORDER medal_country_selected BY gold DESC, name ASC;
+    top3 = LIMIT sorted 3;
     GENERATE FLATTEN(top3) AS (year, country_code, name, gold, total);
 }
 top3_total = FOREACH gYear {
-    top3 = TOP(3, 4, medal_country_selected);
+    sorted = ORDER medal_country_selected BY total DESC, name ASC;
+    top3 = LIMIT sorted 3;
     GENERATE FLATTEN(top3) AS (year, country_code, name, gold, total);
 }
 
@@ -50,9 +52,9 @@ joined_games = JOIN gGold_game BY group, gTotal_game BY group;
 
 REGISTER 'hdfs:///task2.py' USING jython AS task2;
 joined_result = FOREACH joined_games {
-    gold_sorted = ORDER gGold_game::gold_game_result BY gold DESC;
+    gold_sorted = ORDER gGold_game::gold_game_result BY gold DESC, name ASC;
     gold_country = FOREACH gold_sorted GENERATE name, gold;
-    total_sorted = ORDER gTotal_game::total_game_result BY total DESC;
+    total_sorted = ORDER gTotal_game::total_game_result BY total DESC, name ASC;
     total_country = FOREACH total_sorted GENERATE name, total;
     GENERATE task2.format_output(
         gGold_game::group.year,
