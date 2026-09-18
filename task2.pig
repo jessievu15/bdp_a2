@@ -32,7 +32,6 @@ medals_type = FOREACH join_medals GENERATE
 -- (2018,South Korea,5,8,4,2018,PyeongChang,KOR)
 medals_with_host_city = JOIN medals_type BY year, games BY year;
 
-
 -- Aggregate
 
 -- Output=>(2018,South Korea,PyeongChang,17)
@@ -56,7 +55,8 @@ grouped_total_medals = GROUP total_medals_count BY year;
 grouped_gold_medals = GROUP gold_medals_count BY year;
 
 -- Sorting: Get (year, {top-3-tuples}) pair
-
+-- (year,country_name, host_city, total_count)
+-- (year,country_name, host_city, gold_count)
 top3_total_medals = FOREACH grouped_total_medals {
     sorted_total = ORDER total_medals_count BY total_medals DESC;
     top3 = LIMIT sorted_total 3;
@@ -69,6 +69,9 @@ top3_gold_medals = FOREACH grouped_gold {
     GENERATE group AS year, top3;
 };
 
+-- Join 2 top3 group by year
+join_top3 = JOIN top3_total_medals BY year, top3_gold_medals BY year;
 
-Register 'task2.py' using org.apache.pig.scripting.jython.JythonScriptEngine as udf;
-report = FOREACH  grouped_by_year GENERATE udf.format_Bag(grouped_by_year);
+Register 'task2.py' using org.apache.pig.scripting.jython.JythonScriptEngine as myudf;
+report = FOREACH join_top3 GENERATE
+    myudf.format_bag(top3_total_medals::top3, top3_gold_medals::top3) AS report_summary;
