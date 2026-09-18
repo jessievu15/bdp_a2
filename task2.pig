@@ -1,5 +1,7 @@
+-- Default value incase there are no inputs from command line
 %default START_YEAR 1800
 %default END_YEAR 2100
+
 -- Load data
 medal_table = LOAD 'hdfs:///medal_table.csv' USING PigStorage(',') AS (year:int, country_code:chararray, gold:int, silver:int, bronze:int);
 countries = LOAD 'hdfs:///countries.csv' USING PigStorage(',') AS (country_code:chararray, name:chararray, continent:chararray);
@@ -12,7 +14,7 @@ games = FILTER games BY year >= $START_YEAR AND year <= $END_YEAR;
 -- Calculate total medals for each country each game
 total_medal = FOREACH medal_table GENERATE year, country_code, gold, (gold + silver + bronze) AS total;
 
--- Join
+-- Join medal data with countries data by the country code
 medal_country = JOIN total_medal BY country_code, countries BY country_code;
 medal_country_selected = FOREACH medal_country
     GENERATE total_medal::year AS year, 
@@ -23,19 +25,19 @@ medal_country_selected = FOREACH medal_country
 
 gYear = GROUP medal_country_selected BY year;
 
--- Get the top 3 countries and order in descending
+-- Get the top 3 countries and order in descending medal 
 top3_gold = FOREACH gYear {
     sorted = ORDER medal_country_selected BY gold DESC, name ASC;
     top3 = LIMIT sorted 3;
     GENERATE FLATTEN(top3) AS (year, country_code, name, gold, total);
-}
+};
 top3_total = FOREACH gYear {
     sorted = ORDER medal_country_selected BY total DESC, name ASC;
     top3 = LIMIT sorted 3;
     GENERATE FLATTEN(top3) AS (year, country_code, name, gold, total);
-}
+};
 
--- Join
+-- Join the top3 data with countries data by the year
 gold_game = JOIN top3_gold BY year, games BY year;
 gold_game_result = FOREACH gold_game
     GENERATE top3_gold::year AS year,
@@ -53,9 +55,10 @@ total_game_result = FOREACH total_game
              top3_total::total AS total;
 gTotal_game = GROUP total_game_result BY (year, city);
 
--- Join
+-- Join the 2 top3 data together by the composite key (year, city)
 joined_games = JOIN gGold_game BY group, gTotal_game BY group;
 
+-- Output using jython
 REGISTER 'hdfs:///task2.py' USING jython AS task2;
 joined_result = FOREACH joined_games {
     gold_sorted = ORDER gGold_game::gold_game_result BY gold DESC, name ASC;
@@ -68,7 +71,8 @@ joined_result = FOREACH joined_games {
         gold_country,
         total_country
     ) AS final_output;
-}
+};
 
+-- Store output
 STORE joined_result INTO 'hdfs:///Output/task2' USING PigStorage();
 
