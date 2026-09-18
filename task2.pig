@@ -1,7 +1,13 @@
+%default START_YEAR 1800
+%default END_YEAR 2100
 -- Load data
 medal_table = LOAD 'hdfs:///medal_table.csv' USING PigStorage(',') AS (year:int, country_code:chararray, gold:int, silver:int, bronze:int);
 countries = LOAD 'hdfs:///countries.csv' USING PigStorage(',') AS (country_code:chararray, name:chararray, continent:chararray);
 games = LOAD 'hdfs:///games.csv' USING PigStorage(',') AS (year:int, city:chararray, country_code:chararray);
+
+-- Filter by start, end year if START_YEAR and END_YEAR parameters are inputed
+medal_table = FILTER medal_table BY year >= $START_YEAR AND year <= $END_YEAR;
+games = FILTER games BY year >= $START_YEAR AND year <= $END_YEAR;
 
 -- Calculate total medals for each country each game
 total_medal = FOREACH medal_table GENERATE year, country_code, gold, (gold + silver + bronze) AS total;
