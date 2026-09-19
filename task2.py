@@ -1,30 +1,26 @@
-#!/usr/bin/env python
-import sys
-
-# (2014,{(2014,United States,Sochi,9,28)})
-@outputSchema("year:bag{t:tuple(year:int,country_name:chararray, host_city:chararray, gold:int, total_medals:int)}") 
-def format_Bag(bag):
-   output_Bag = []
-   current_year = None
-   count = 0
-   
-   for word in bag:
-        parts = word.split(",")
-     
-        if len(parts) != 5:
-            continue
-   
-        year = int(parts[0])
-        country_name = parts[1]
-        host_city = parts[2]
-        gold = int(parts[3])
-        total_medals = int(parts[4])
-        
-        if current_year is None:
-            current_year = year
-        else:
+@outputSchema("final_output:chararray") 
+def format_output(year,gold_full,gold,total):
+    city = gold_full[0][2]
+    
+    def format_bag(bag):
+        parts = []
+        for i,field in enumerate(bag,start=1):
+            name = field[0]
+            count = field[1]
+            parts.append("%d. %s (%d)" % (i, name, count))
             
-            output_Bag.append((year, country_name, host_city, gold, total_medals))
-   
-    return output_Bag
-
+        return " | ".join(parts)
+    
+    lines = []
+    lines.append("%d %s"% (year, city))
+    lines.append("By Gold Medals:")
+    lines.append(format_bag(gold))
+    lines.append("By Total Medals:")
+    lines.append(format_bag(total))
+    
+    return "\n".join(lines) + "\n"
+      
+        
+        
+        
+        
