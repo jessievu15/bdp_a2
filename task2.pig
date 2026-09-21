@@ -59,87 +59,74 @@ gold_list = FOREACH medals_type_hc GENERATE
     country_name,
     gold;
 
--- group gold by year
--- (2010,{(2010,Vancouver,Italy,1),(2010,Vancouver,Germany,10),(2010,Vancouver,China,5),
--- (2010,Vancouver,Russia / ROC / OAR,3),(2010,Vancouver,United States,9),
--- (2010,Vancouver,Switzerland,6),(2010,Vancouver,Norway,9),(2010,Vancouver,South Korea,6),
--- (2010,Vancouver,Canada,14),(2010,Vancouver,Japan,0),(2010,Vancouver,Sweden,5)})
-grouped_gold = GROUP gold_list BY year;
+-- group by year and host city
+-- ((2010,Vancouver),{(2010,Vancouver,Italy,1),(2010,Vancouver,Germany,10),(2010,Vancouver,China,5),
+-- (2010,Vancouver,Russia / ROC / OAR,3),(2010,Vancouver,United States,9),(2010,Vancouver,Switzerland,6)
+--  (2010,Vancouver,Norway,9),(2010,Vancouver,South Korea,6),(2010,Vancouver,Canada,14),(2010,Vancouver,Japan,0),
+-- (2010,Vancouver,Sweden,5)})
+grouped_gold = GROUP gold_list BY (year, host_city);
 
--- generate top 3 gold per year
--- (2010,Vancouver,Sweden,5)
--- (2010,Vancouver,Switzerland,6)
--- (2010,Vancouver,United States,9)
--- (2014,Sochi,Sweden,2)
--- (2014,Sochi,Switzerland,6)
--- (2014,Sochi,United States,9)
--- (2018,PyeongChang,Sweden,7)
--- (2018,PyeongChang,United States,9)
--- (2018,PyeongChang,Switzerland,5)
+-- Sort by gold descending and country name as tie breaker
+-- (2010,Vancouver,Canada,14)
+-- (2010,Vancouver,Germany,10)
+-- (2010,Vancouver,Norway,9)
+-- (2014,Sochi,Russia / ROC / OAR,13)
+-- (2014,Sochi,Norway,11)
+-- (2014,Sochi,Canada,10)
+-- (2018,PyeongChang,Germany,14)
+-- (2018,PyeongChang,Norway,14)
+-- (2018,PyeongChang,Canada,11)
 top_3_gold = FOREACH grouped_gold {
-    top_bag = TOP(3, 2, gold_list);
-    GENERATE FLATTEN(top_bag);
+    sorted_bag = ORDER gold_list BY gold DESC, country_name ASC;
+    top_bag = LIMIT sorted_bag 3;
+    GENERATE FLATTEN (top_bag) AS (year, host_city, country_name, gold);
 };
 
--- Order
--- (2010,Vancouver,United States,9)
--- (2010,Vancouver,Switzerland,6)
--- (2010,Vancouver,Sweden,5)
--- (2014,Sochi,United States,9)
--- (2014,Sochi,Switzerland,6)
--- (2014,Sochi,Sweden,2)
--- (2018,PyeongChang,United States,9)
--- (2018,PyeongChang,Sweden,7)
--- (2018,PyeongChang,Switzerland,5)
-top_3_gold_sorted = ORDER top_3_gold BY year ASC, gold DESC;
+-- group top 3 gold by year and host city
+-- ((2010,Vancouver),{(2010,Vancouver,Norway,9),(2010,Vancouver,Germany,10),(2010,Vancouver,Canada,14)})
+   --((2014,Sochi),{(2014,Sochi,Canada,10),(2014,Sochi,Norway,11),(2014,Sochi,Russia / ROC / OAR,13)})
+   --((2018,PyeongChang),{(2018,PyeongChang,Canada,11),(2018,PyeongChang,Norway,14),(2018,PyeongChang,Germany,14)})
+group_top_3_gold = GROUP top_3_gold BY (year, host_city);
 
 -- work out top total medals per year
--- (2014,Sochi,Japan,1,4,3)
-medals_type_hc
-
 -- Aggregate for total medal count
 -- (2010,Vancouver,Sweden,11)
 -- (2014,Sochi,Japan,8)
-total_medals_count = FOREACH medals_type_hc GENERATE
+total_list = FOREACH medals_type_hc GENERATE
     year,
     host_city,
     country_name,
-    (gold + silver + bronze) AS total_medals;
+    (gold + silver + bronze) AS total;
 
--- group total by year
--- (2010,{(2010,Vancouver,Italy,5),(2010,Vancouver,Germany,30),(2010,Vancouver,China,11),
--- (2010,Vancouver,Russia / ROC / OAR,15),(2010,Vancouver,United States,37),
--- (2010,Vancouver,Switzerland,9),(2010,Vancouver,Norway,23),(2010,Vancouver,South Korea,14),
--- (2010,Vancouver,Canada,26),(2010,Vancouver,Japan,5),(2010,Vancouver,Sweden,11)})
-grouped_total = GROUP total_medals_count BY year;
+-- group by year and host city
+grouped_total = GROUP total_list BY (year, host_city);
 
--- generate top total per year
--- (2010,Vancouver,Sweden,11)
--- (2010,Vancouver,Switzerland,9)
+-- Sort by gold descending and country name as tie breaker
 -- (2010,Vancouver,United States,37)
--- (2014,Sochi,Sweden,15)
--- (2014,Sochi,Switzerland,11)
+-- (2010,Vancouver,Germany,30)
+-- (2010,Vancouver,Canada,26)
+-- (2014,Sochi,Russia / ROC / OAR,33)
 -- (2014,Sochi,United States,28)
--- (2018,PyeongChang,Sweden,14)
--- (2018,PyeongChang,United States,23)
--- (2018,PyeongChang,Switzerland,15)
-
-top_3_total_per_year = FOREACH grouped_total {
-    top_bag = TOP(3, 2, total_medals_count);
-    GENERATE FLATTEN(top_bag);
+-- (2014,Sochi,Norway,26)
+-- (2018,PyeongChang,Norway,39)
+-- (2018,PyeongChang,Germany,31)
+-- (2018,PyeongChang,Canada,29)
+top_3_total = FOREACH grouped_total {
+    sorted_bag = ORDER total_list BY total DESC, country_name ASC;
+    top_bag = LIMIT sorted_bag 3;
+    GENERATE FLATTEN (top_bag) AS (year, host_city, country_name, total);
 };
 
--- Order by year then total count
--- (2010,Vancouver,United States,37)
--- (2010,Vancouver,Sweden,11)
--- (2010,Vancouver,Switzerland,9)
--- (2014,Sochi,United States,28)
--- (2014,Sochi,Sweden,15)
--- (2014,Sochi,Switzerland,11)
--- (2018,PyeongChang,United States,23)
--- (2018,PyeongChang,Switzerland,15)
--- (2018,PyeongChang,Sweden,14)
-top_3_total_sorted = ORDER top_3_total_per_year BY year ASC, total_medals DESC;
+-- group top 3 total by year and host city
+-- ((2010,Vancouver),{(2010,Vancouver,Canada,26),(2010,Vancouver,Germany,30),(2010,Vancouver,United States,37)})
+   --((2014,Sochi),{(2014,Sochi,Norway,26),(2014,Sochi,United States,28),(2014,Sochi,Russia / ROC / OAR,33)})
+   --((2018,PyeongChang),{(2018,PyeongChang,Canada,29),(2018,PyeongChang,Germany,31),(2018,PyeongChang,Norway,39)})
+group_top_3_total = GROUP top_3_total BY (year, host_city);
+
+-- join the two bags
+-- ((2010,Vancouver),{(2010,Vancouver,Norway,9),(2010,Vancouver,Germany,10),(2010,Vancouver,Canada,14)},
+-- (2010,Vancouver),{(2010,Vancouver,Canada,26),(2010,Vancouver,Germany,30),(2010,Vancouver,United States,37)})
+join_top_3 = JOIN group_top_3_gold BY group, group_top_3_total BY group;
 
 -- Need to use Rena's Jython
 -- Register 'task2.py' using org.apache.pig.scripting.jython.JythonScriptEngine as udf;
