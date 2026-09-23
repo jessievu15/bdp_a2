@@ -1,18 +1,23 @@
 -- Adapted from Rena's code
+
+-- Default value incase there are no inputs from command line
+%default START_YEAR 1800
+%default END_YEAR 2100
+
 -- Load the medals file
 medals = load 'hdfs:///medal_table.csv'
     using PigStorage(',')
     as (year:int, country_code:chararray, gold:int, silver:int, bronze:int);
 
 -- Filter medal by year (year,country_code,gold,silver,bronze)
-medals_filtered = Filter medals BY year >= 2010 AND year <= 2020;
+medals_filtered = Filter medals BY year >= $START_YEAR AND year <= $END_YEAR;
 
 -- Load the countries file
 countries = load 'hdfs:///countries.csv'
     using PigStorage(',')
     as (country_code:chararray, country_name:chararray, region:chararray);
 
--- Joins: join using country with Medals with date between 2010 and 2020
+-- Joins: join using country with Medals
 -- (2018,USA,9,8,6,USA,United States,North America)
 join_medals = JOIN medals_filtered BY country_code, countries BY country_code;
 
@@ -31,6 +36,8 @@ medals_type = FOREACH join_medals GENERATE
 games = load 'hdfs:///games.csv'
     using PigStorage(',')
     as (year:int, host_city:chararray, host_country_code:chararray);
+-- Filter games by year
+games = FILTER games BY year >= $START_YEAR AND year <= $END_YEAR;
 
 -- join games to medals_type
 --(2014,CAN,Canada,10,10,5,2014,Sochi,RUS)
@@ -127,6 +134,30 @@ group_top_3_total = GROUP top_3_total BY (year, host_city);
 -- ((2010,Vancouver),{(2010,Vancouver,Norway,9),(2010,Vancouver,Germany,10),(2010,Vancouver,Canada,14)},
 -- (2010,Vancouver),{(2010,Vancouver,Canada,26),(2010,Vancouver,Germany,30),(2010,Vancouver,United States,37)})
 join_top_3 = JOIN group_top_3_gold BY group, group_top_3_total BY group;
+
+-- Output using jython
+REGISTER 'hdfs:///task2.py' USING jython AS task2;
+
+joined_result = FOREACH join_top_3 {
+    -- 1. Sort the internal gold bag matching the schema fields from top_3_gold
+    gold_sorted = ORDER group_top_3_gold::top_3_gold BY gold DESC, country_name ASC;
+    gold_country = FOREACH gold_sorted GENERATE country_name, gold;
+
+    -- 2. Sort the internal total bag matching the schema fields from top_3_total
+    total_sorted = ORDER group_top_3_total::top_3_total BY total DESC, country_name ASC;
+    total_country = FOREACH total_sorted GENERATE country_name, total;
+
+    -- 3. Call the UDF with correct grouped tuple path mapping
+    GENERATE task2.format_output(
+        group_top_3_gold::group.year,
+        group_top_3_gold::group.host_city,
+        gold_country,
+        total_country
+    ) AS final_output;
+};
+
+-- Store output
+STORE joined_result INTO 'hdfs:///Output/task2' USING PigStorage();
 
 -- Need to use Rena's Jython
 -- Register 'task2.py' using org.apache.pig.scripting.jython.JythonScriptEngine as udf;
