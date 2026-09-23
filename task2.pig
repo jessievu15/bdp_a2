@@ -45,6 +45,7 @@ gold_game_result = FOREACH gold_game
              top3_gold::name AS name,
              top3_gold::gold AS gold;
 
+-- Group the top3 data by composite key (year, city) - easier to join and print out
 gGold_game = GROUP gold_game_result BY (year, city);
 
 total_game = JOIN top3_total BY year, games BY year;

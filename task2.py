@@ -2,6 +2,7 @@
 def format_output(year, city, gold_country, total_country):
 
     def per_line(bag):
+        # print out the top 3 medals in the requried format
         parts = []
         i = 1
         for field in bag:
