@@ -36,7 +36,7 @@ medal_country_game_selected = FOREACH medal_country_game
 grouped_year_city = GROUP medal_country_game_selected BY (year, city);
 
 -- Output using jython
-REGISTER 'hdfs:///task2.py' USING jython AS task2;
+REGISTER 'task2.py' USING jython AS task2;
 joined_result = FOREACH grouped_year_city {
     gold_sorted = ORDER medal_country_game_selected BY gold DESC, name ASC;
     top3_gold = LIMIT gold_sorted 3;
